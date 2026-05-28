@@ -1,0 +1,508 @@
+<h2 class="sr-only">Zendesk service operations dashboard with team selector, stacked volume chart, and dynamic KPIs</h2>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);color:var(--color-text-primary)}
+.page{padding:1.5rem 0}
+.header{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:0.5px solid var(--color-border-tertiary)}
+.header h1{font-size:18px;font-weight:500}
+.header p{font-size:12px;color:var(--color-text-secondary);margin-top:3px}
+.badge{font-size:11px;padding:3px 10px;border-radius:var(--border-radius-md);background:var(--color-background-success);color:var(--color-text-success)}
+.section-label{font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--color-text-secondary);margin-bottom:10px}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:1.25rem}
+.metric{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:.75rem 1rem}
+.metric-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px}
+.metric-value{font-size:20px;font-weight:500}
+.metric-delta{font-size:11px;margin-top:2px}
+.up{color:#1D9E75}.down{color:#D85A30}.flat{color:#888780}
+.chart-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;margin-bottom:1rem}
+.chart-title{font-size:13px;font-weight:500;color:var(--color-text-secondary);margin-bottom:8px}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--color-text-secondary);margin-bottom:8px}
+.legend span{display:flex;align-items:center;gap:4px}
+.leg-sq{width:10px;height:10px;border-radius:2px;display:inline-block;flex-shrink:0}
+.team-selector{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1.25rem}
+.team-btn{font-size:12px;padding:5px 11px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;transition:all .15s}
+.team-btn:hover{background:var(--color-background-secondary)}
+.team-btn.active{background:var(--color-background-info);color:var(--color-text-info);border-color:transparent}
+.summary-card{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;margin-bottom:1.25rem;font-size:13px;line-height:1.8}
+.summary-card h3{font-size:13px;font-weight:500;margin-bottom:8px}
+.summary-card p{margin-bottom:8px}
+.summary-card p:last-child{margin-bottom:0}
+.obs-label{font-size:11px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:var(--color-text-secondary);margin-bottom:6px;margin-top:10px}
+.obs-list{padding-left:1.1rem;font-size:13px;line-height:1.85}
+.obs-list li{margin-bottom:2px}
+.highlight-li{color:var(--color-text-primary)}
+.watch-li{color:#D85A30}
+.corr-li{color:var(--color-text-info)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+@media(max-width:520px){.two-col{grid-template-columns:1fr}}
+.share-btn{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:5px 13px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;transition:all .15s;margin-bottom:1.25rem}
+.share-btn:hover{background:var(--color-background-secondary)}
+.share-panel{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:1.25rem;margin-bottom:1.25rem;display:none}
+.share-panel h3{font-size:14px;font-weight:500;margin-bottom:4px}
+.share-panel .sub{font-size:12px;color:var(--color-text-secondary);margin-bottom:1rem}
+.steps{counter-reset:step;list-style:none;padding:0}
+.steps li{counter-increment:step;display:flex;gap:10px;margin-bottom:14px;font-size:13px;line-height:1.6}
+.steps li::before{content:counter(step);min-width:22px;height:22px;border-radius:50%;background:var(--color-background-info);color:var(--color-text-info);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.steps li a{color:var(--color-text-info);text-decoration:underline}
+.steps li a:hover{opacity:.8}
+.code-block{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:.5rem .75rem;font-family:monospace;font-size:11px;color:var(--color-text-primary);margin:.4rem 0;word-break:break-all}
+.copy-btn{font-size:11px;padding:3px 9px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;margin-left:6px;transition:all .15s}
+.copy-btn:hover{background:var(--color-background-success);color:var(--color-text-success)}
+.tip{font-size:12px;color:var(--color-text-secondary);background:var(--color-background-primary);border-radius:var(--border-radius-md);padding:.6rem .9rem;margin-top:.5rem;border-left:3px solid var(--color-border-info)}
+</style>
+
+<div class="page">
+  <div class="header">
+    <div>
+      <h1>Service operations dashboard</h1>
+      <p>Mar 29 – May 16, 2026 &nbsp;·&nbsp; 8 weeks &nbsp;·&nbsp; 9 teams</p>
+    </div>
+    <span class="badge">Zendesk · 8-week rolling</span>
+  </div>
+
+  <button class="share-btn" onclick="toggleShare(this)">⬆ Share dashboard via GitHub Pages</button>
+  <div class="share-panel" id="share-panel">
+    <h3>Publish to GitHub Pages — free public URL</h3>
+    <p class="sub">Follow these steps once. After that, just replace <code style="font-size:11px">index.html</code> each week to update the live dashboard for everyone.</p>
+    <ol class="steps">
+      <li>
+        <div>
+          <strong>Create a free GitHub account</strong> if you don't have one.<br>
+          <a href="https://github.com/signup" target="_blank">github.com/signup →</a>
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>Create a new repository.</strong> Go to <a href="https://github.com/new" target="_blank">github.com/new</a>, name it something like <span class="code-block">service-dashboard</span> and set visibility to <em>Public</em>. Click <em>Create repository</em>.
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>Download your dashboard as an HTML file.</strong> Click the <em>···</em> menu on this artifact → <em>Download</em> (or copy the code and save it as a file named exactly):
+          <span class="code-block">index.html</span>
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>Upload the file to your repository.</strong> On your new repo page, click <em>Add file → Upload files</em>, drag in <code style="font-size:11px">index.html</code>, and click <em>Commit changes</em>.
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>Enable GitHub Pages.</strong> Go to your repo → <em>Settings → Pages</em>. Under <em>Source</em>, select <em>Deploy from a branch</em>, choose <em>main</em> branch and <em>/ (root)</em> folder. Click <em>Save</em>.
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>Your dashboard is live!</strong> After ~60 seconds, your public URL will be:
+          <span class="code-block" id="url-preview">https://YOUR-USERNAME.github.io/service-dashboard/</span>
+          <button class="copy-btn" onclick="copyUrl()">Copy URL</button>
+          <div class="tip">💡 Replace <em>YOUR-USERNAME</em> with your actual GitHub username. Share this link with anyone — no login needed.</div>
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>Updating each week</strong> is easy: paste new data into Claude, download the refreshed artifact, go back to your repo → <em>Add file → Upload files</em>, upload the new <code style="font-size:11px">index.html</code> (it will replace the old one), and commit. The URL stays the same — your audience just refreshes the page.
+        </div>
+      </li>
+    </ol>
+    <div class="tip">🔒 <strong>Want to keep it private?</strong> GitHub Pages requires a public repo on free accounts. For a private dashboard, consider <a href="https://netlify.com" target="_blank" style="color:var(--color-text-info)">Netlify</a> (free tier, password-protect with a paid plan) or host on your company's intranet.</div>
+  </div>
+
+  <div class="section-label" id="kpi-label">Overall KPI trends — all teams</div>
+  <div class="metrics" id="kpi-cards"></div>
+
+  <div class="section-label">Filter by team</div>
+  <div class="team-selector" id="team-selector"></div>
+
+  <div class="summary-card" id="summary-card"></div>
+
+  <div class="chart-card">
+    <div class="chart-title" id="vol-title">Service order volume — all teams (stacked)</div>
+    <div class="legend" id="vol-legend"></div>
+    <div style="position:relative;width:100%;height:230px">
+      <canvas id="volChart" role="img" aria-label="Weekly stacked service order volume by team">Weekly stacked order volumes.</canvas>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title" id="time-title">First reply &amp; resolution time (hours)</div>
+    <div class="legend" id="time-legend"></div>
+    <div style="position:relative;width:100%;height:210px">
+      <canvas id="timeChart" role="img" aria-label="Reply and resolution time trends">Response time trends.</canvas>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title" id="missed-title">Missed call rate (%)</div>
+    <div class="legend" id="missed-legend"></div>
+    <div style="position:relative;width:100%;height:170px">
+      <canvas id="missedChart" role="img" aria-label="Missed call rate percentage">Missed call rate trends.</canvas>
+    </div>
+  </div>
+
+  <div class="chart-card" id="nps-card">
+    <div class="chart-title" id="nps-title">Net promoter score (out of 5)</div>
+    <div class="legend" id="nps-legend"></div>
+    <div style="position:relative;width:100%;height:170px">
+      <canvas id="npsChart" role="img" aria-label="Net promoter score trend">NPS trend.</canvas>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+const gridC = isDark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.05)';
+const textC = isDark?'#999':'#888';
+const BENCH_COLOR = isDark?'#666':'#bbb';
+const SI = 11;
+
+const ALL_WEEKS=['Jan 11','Jan 18','Jan 25','Feb 1','Feb 8','Feb 15','Feb 22','Mar 1','Mar 8','Mar 15','Mar 22','Mar 29','Apr 5','Apr 12','Apr 19','Apr 26','May 3','May 10','May 17'];
+const W8 = ALL_WEEKS.slice(SI);
+
+const TEAM_NAMES=['Advisory Services','Client Support','Client Workflow','Concierge','Credit Operations','Direct Bus. Ops','IT Service Desk','Retirement Ops','Trading Services'];
+const TEAM_COLORS=['#D85A30','#7F77DD','#378ADD','#BA7517','#1D9E75','#888780','#5DCAA5','#AFA9EC','#F0997B'];
+
+const RAW={
+  'All Teams':{
+    orders:[3049,2486,3200,3310,2924,2650,3166,3096,2755,2765,2655,2405,3247,3177,2728,2759,2787,2674,2630],
+    reply: [0.76,0.78,0.80,0.81,0.63,0.56,0.80,0.61,0.70,0.64,0.66,0.45,0.70,0.65,0.60,0.58,0.64,0.88,0.73],
+    reso:  [0.82,1.04,0.90,1.06,0.75,0.53,0.90,0.83,1.09,0.67,0.69,0.79,0.85,0.68,0.64,0.53,0.74,0.78,0.59],
+    missed:[24,27,31,34,28,44,36,23,27,19,26,26,23,29,27,26,26,25,24],
+    nps:   [null,null,null,null,null,null,null,null,4.87,4.91,4.98,null,4.92,4.94,4.96,4.90,4.97,4.90,4.94]
+  },
+  'Advisory Services':{
+    orders:[332,263,324,369,299,295,347,433,292,335,297,268,401,304,272,273,336,298,295],
+    reply: [0.58,0.46,0.36,0.66,0.36,0.15,0.33,0.39,0.23,0.17,0.28,0.08,0.13,0.03,0.31,1.09,0.73,0.67,0.78],
+    reso:  [2.55,4.13,3.13,3.18,1.25,0.63,1.78,2.76,4.46,1.98,1.82,3.17,3.17,1.57,2.20,1.41,1.77,2.01,1.62],
+    missed:[30,3,12,33,17,59,25,13,15,24,9,7,14,24,24,17,9,19,15],
+    nps:   [null,null,null,null,null,null,null,null,4.94,4.88,5.00,null,4.83,5.00,5.00,4.79,5.00,4.80,4.40]
+  },
+  'Client Support':{
+    orders:[207,207,365,394,368,329,342,343,264,250,230,275,277,259,180,172,169,174,146],
+    reply: [0.17,0.18,0.37,0.28,0.27,0.25,0.43,0.20,0.22,0.18,0.28,0.17,0.20,0.23,0.18,0.23,0.23,0.25,0.20],
+    reso:  [0.20,0.23,0.50,0.55,0.45,0.27,0.58,0.26,0.25,0.22,0.43,0.18,0.30,0.30,0.19,0.23,0.27,0.38,0.29],
+    missed:[34,54,56,52,41,58,46,32,31,27,39,39,28,43,29,32,26,26,28],
+    nps:   [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null]
+  },
+  'Client Workflow':{
+    orders:[489,391,434,537,493,510,637,548,553,466,445,408,570,580,532,534,527,445,494],
+    reply: [0.40,0.33,0.37,0.28,0.38,0.37,0.55,0.43,0.37,0.35,0.56,0.39,0.53,0.53,0.47,0.46,0.58,0.57,0.43],
+    reso:  [0.53,0.65,0.63,0.63,0.65,0.55,0.87,0.58,0.68,0.55,0.80,0.75,0.78,0.75,0.63,0.55,0.92,0.85,0.66],
+    missed:[30,14,35,48,47,51,41,18,33,22,27,22,28,32,27,23,40,25,19],
+    nps:   [null,null,null,null,null,null,null,null,4.77,4.80,5.00,null,4.94,4.87,5.00,4.92,4.88,4.92,5.00]
+  },
+  'Concierge':{
+    orders:[84,51,79,79,71,39,66,70,77,77,51,65,95,95,78,72,65,65,37],
+    reply: [0.39,0.46,1.00,0.61,0.43,0.42,0.48,0.44,0.38,0.37,0.62,0.35,0.50,0.43,0.50,0.55,0.40,0.47,0.32],
+    reso:  [0.46,1.05,0.82,1.27,0.52,0.36,0.68,0.65,0.34,1.78,0.63,0.44,0.80,0.83,1.32,1.26,0.78,1.63,0.48],
+    missed:[41,50,37,55,47,47,35,46,47,31,71,37,50,64,73,52,50,43,57],
+    nps:   [null,null,null,null,null,null,null,null,5.00,5.00,5.00,null,4.86,5.00,5.00,5.00,5.00,5.00,5.00]
+  },
+  'Credit Operations':{
+    orders:[297,238,298,238,220,210,240,240,291,278,278,237,326,347,304,306,289,295,280],
+    reply: [0.52,0.38,0.58,1.17,0.35,0.43,0.38,0.52,0.53,0.73,0.72,0.48,0.73,0.38,0.43,0.37,0.35,1.74,0.50],
+    reso:  [0.63,0.42,0.63,0.95,0.47,0.39,0.33,0.54,0.48,0.48,0.52,0.50,0.47,0.38,0.39,0.41,0.30,0.90,0.27],
+    missed:[32,26,38,39,33,49,39,26,19,17,28,21,14,29,19,25,25,27,20],
+    nps:   [null,null,null,null,null,null,null,null,5.00,4.93,5.00,null,4.81,4.95,5.00,4.88,4.94,4.64,5.00]
+  },
+  'Direct Bus. Ops':{
+    orders:[232,151,179,203,241,218,235,252,180,221,205,163,248,292,197,167,260,251,243],
+    reply: [3.10,3.63,3.23,4.10,2.58,1.48,3.48,1.93,1.90,1.30,1.25,1.25,1.78,1.64,0.99,1.00,1.12,1.00,1.04],
+    reso:  [2.73,3.35,2.87,4.05,2.82,1.44,4.14,1.60,3.13,1.19,1.44,1.77,1.10,1.81,0.97,1.02,2.00,1.33,1.29],
+    missed:[54,47,45,57,33,64,83,39,66,40,45,64,39,22,37,34,47,34,40],
+    nps:   [null,null,null,null,null,null,null,null,3.75,5.00,5.00,null,5.00,5.00,5.00,5.00,5.00,5.00,5.00]
+  },
+  'IT Service Desk':{
+    orders:[657,598,754,674,599,580,728,637,581,611,616,515,642,626,645,668,589,615,618],
+    reply: [0.84,0.93,1.15,0.98,0.63,0.72,0.85,0.65,1.40,0.98,0.83,0.67,1.13,0.90,0.90,0.65,0.74,0.92,1.40],
+    reso:  [0.35,0.30,0.32,0.30,0.28,0.18,0.22,0.18,0.35,0.23,0.23,0.25,0.23,0.25,0.25,0.20,0.23,0.27,0.28],
+    missed:[17,21,19,26,18,31,27,14,20,13,21,23,29,27,31,26,23,29,28],
+    nps:   [null,null,null,null,null,null,null,null,4.91,4.96,4.94,null,4.97,4.92,4.98,4.96,5.00,4.95,4.97]
+  },
+  'Retirement Ops':{
+    orders:[294,216,263,245,250,201,234,222,213,237,207,201,358,341,212,226,219,206,201],
+    reply: [0.73,0.68,0.82,0.72,0.82,0.87,0.68,0.92,0.83,0.90,0.57,0.42,0.72,0.55,0.98,0.53,0.43,0.25,0.38],
+    reso:  [0.45,0.94,0.67,0.95,0.75,1.30,0.60,0.85,1.27,0.67,0.73,0.38,0.73,0.57,0.72,0.62,0.50,0.42,0.43],
+    missed:[15,21,20,12,6,16,27,19,25,7,8,11,8,10,25,12,23,12,25],
+    nps:   [null,null,null,null,null,null,null,null,4.50,4.85,5.00,null,4.87,5.00,4.50,4.63,5.00,4.90,5.00]
+  },
+  'Trading Services':{
+    orders:[420,345,472,534,336,245,337,351,304,290,326,273,330,333,308,341,333,325,316],
+    reply: [0.43,0.77,0.48,0.27,0.33,0.57,0.57,0.47,0.28,0.63,0.77,0.36,0.45,0.87,0.38,0.43,0.73,1.40,0.32],
+    reso:  [0.27,0.35,0.43,0.27,0.37,0.28,0.28,0.23,0.22,0.20,0.20,0.18,0.15,0.25,0.20,0.22,0.15,0.25,0.14],
+    missed:[14,12,19,11,14,32,19,21,21,17,14,15,11,16,14,24,19,19,14],
+    nps:   [null,null,null,null,null,null,null,null,5.00,4.92,5.00,null,5.00,5.00,5.00,4.88,5.00,5.00,5.00]
+  }
+};
+
+const CONTENT={
+  'All Teams':{
+    summary:'Over the past 8 weeks (Apr 5 – May 23), the organization processed an average of 2,778 service orders per week across 9 teams. First reply time improved to 0.73h this week, down from last week\'s 0.88h spike. Resolution time improved sharply to 0.59h — the best in the 8-week window. Missed call rate held steady at 24%. NPS came in at 4.94 this week, consistent with recent weeks. Advisory Services posted its lowest NPS (4.40) on record this week, coinciding with elevated reply and resolution times — a key watch item.',
+    highlights:['Missed call rate stabilized at 25–26% for 5 consecutive weeks','Resolution time improved ~30% from Jan–Feb highs','NPS consistently at or above 4.90 across all scoring teams','IT Service Desk handles ~23% of all weekly volume with stable times'],
+    risks:['First reply time spiked to 0.88h last week — highest since March','Direct Bus. Ops reply times remain 3–5× above peer average','Advisory Services reply jumped to 1.09h before recovering'],
+    corr:['Weeks with first reply under 0.65h consistently yield NPS ≥ 4.90 — lower reply time is better','Volume alone does not correlate with NPS — high-volume teams can maintain top scores','The Feb 15 missed-call spike (44%) preceded a modest NPS dip the following week']
+  },
+  'Advisory Services':{
+    summary:'Advisory Services averaged 315 orders/week over the 8-week window. First reply time is among the lowest of all teams, typically sub-0.35h — though a spike to 1.09h on Apr 26 stands out. Resolution time is the highest of all teams (1.41–3.17h), likely reflecting complex advisory work. NPS held strong at 4.79–5.00 throughout.',
+    highlights:['First reply time among lowest of all teams — sub-0.35h most weeks','NPS strong at 4.79–5.00 throughout the 8-week window','Missed call rate improved to single digits (7–9%) in recent weeks'],
+    risks:['Resolution time highly volatile — ranging from 1.41h to 3.17h week-to-week','First reply spiked to 1.09h on Apr 26 — an outlier worth monitoring'],
+    corr:['NPS remains high even in weeks with slower resolution — clients appear more sensitive to first reply speed','The Apr 26 reply spike to 1.09h did not yet visibly impact NPS, but trend should be watched']
+  },
+  'Client Support':{
+    summary:'Client Support averaged 215 orders/week — down significantly from Jan–Feb levels (~370/week). This team has the fastest first reply (0.17–0.25h) and resolution times (0.18–0.38h) of all teams. Missed call rate has improved from a 39% peak to 26% recently. No NPS data is available for this team.',
+    highlights:['Fastest reply and resolution times across all 9 teams','Missed call rate improved from 39% to 26% over the window','Volume stabilized around 169–180 in recent weeks'],
+    risks:['Volume has declined ~50% since Jan — root cause should be investigated','No NPS data available — gap in satisfaction visibility for this team'],
+    corr:['No NPS data available for correlation analysis','Best-in-class response times suggest high potential NPS once tracking is enabled']
+  },
+  'Client Workflow':{
+    summary:'Client Workflow is the second-highest volume team, averaging 524 orders/week. First reply time has crept up to 0.57–0.58h in the last two weeks. NPS has been exceptional at 4.87–5.00 across all scored weeks. A missed call spike to 40% on May 3 is the key watch item.',
+    highlights:['Highest NPS scores of all teams — 4.87–5.00 every scored week','Consistent volume around 527–580 orders weekly','Resolution time trending favorably at 0.55–0.85h'],
+    risks:['Missed call rate spiked to 40% week of May 3 — recent high','First reply time has crept up to 0.57–0.58h in last two weeks'],
+    corr:['Clear pattern: weeks with reply time above 0.55h tend to see NPS at or below 4.88','Missed call spikes do not appear to directly impact NPS — connect quality may matter more than connect rate']
+  },
+  'Concierge':{
+    summary:'Concierge averaged 73 orders/week over the 8-week window. First reply time is consistent at 0.40–0.55h. Resolution time has been variable. NPS has been at or near 5.00 throughout scored weeks.',
+    highlights:['First reply time steady at 0.40–0.55h','NPS at or near 5.00 throughout scored weeks'],
+    risks:['Resolution time variable — 0.78h to 1.63h in recent weeks','Missed call rate elevated relative to other teams'],
+    corr:['Limited volume makes week-to-week trend analysis less reliable for this team']
+  },
+  'Credit Operations':{
+    summary:'Credit Operations averaged 308 orders/week. The team has shown improving missed call rates (14% low in Apr 5 vs 28% earlier). However, the most recent week saw a first reply spike to 1.74h — a significant outlier — coinciding with NPS dropping to 4.64, the lowest score in the entire dataset.',
+    highlights:['Missed call rate improved from 28% to a low of 14% (Apr 5)','Resolution time trend is generally improving over the window'],
+    risks:['First reply spiked to 1.74h last week — most significant outlier in the dataset','NPS dropped to 4.64 last week — lowest score recorded across all teams and weeks'],
+    corr:['Strongest NPS-to-reply-time correlation of all teams — 1.74h reply directly preceded 4.64 NPS','When reply time is below 0.50h, NPS holds at 4.88–5.00 — clear operational target']
+  },
+  'Direct Bus. Ops':{
+    summary:'Direct Business Operations has the slowest response and resolution times of all teams, but has shown meaningful improvement — first reply came down from 1.78h (Apr 5) to 1.00h recently. NPS has been 5.00 for most scored weeks, suggesting clients have different expectations for this team\'s complex workflows.',
+    highlights:['Reply time improved materially — from 1.78h (Apr 5) to ~1.00h recently','NPS at 5.00 for most scored weeks despite high absolute response times'],
+    risks:['Reply and resolution times remain the highest of all teams by a wide margin','Missed call rate elevated at 34–47% in recent weeks'],
+    corr:['High response times do not appear to impact NPS here — client expectations are likely calibrated differently','Volume fluctuations (167–292/week) show no clear correlation with satisfaction']
+  },
+  'IT Service Desk':{
+    summary:'IT Service Desk is the highest-volume team, averaging 626 orders/week. Resolution time is best-in-class at 0.20–0.27h. NPS is consistently 4.92–5.00. First reply time has been somewhat volatile (0.65–1.13h) but has not visibly impacted satisfaction. Missed call rate is trending up slightly in recent weeks.',
+    highlights:['Highest volume team — consistent 589–668 orders/week','Resolution time best-in-class at 0.20–0.27h','NPS strong at 4.92–5.00 throughout the window'],
+    risks:['First reply time increased to 0.92h last week','Missed call rate trending up — 23–29% in last 3 weeks'],
+    corr:['Resolution time (not first reply) appears to be the primary NPS driver for this team','High volume shows no negative correlation with NPS — operational consistency is strong']
+  },
+  'Retirement Ops':{
+    summary:'Retirement Operations averaged 249 orders/week, with a notable volume spike in Apr 5–12 (358–341 orders). First reply time has improved significantly, dropping to 0.25h in the latest week. Missed call rate is generally the best among higher-volume teams at 7–12%, with some recent deterioration.',
+    highlights:['Missed call rate best-in-class among higher-volume teams — 7–12% most weeks','First reply time trending strongly downward — 0.25h in latest week'],
+    risks:['Volume spike in Apr 5–12 (358–341 orders) vs typical ~210–220 — cause unclear','Missed call rate deteriorated to 23–25% in last two weeks'],
+    corr:['Lowest NPS (4.50) coincides with highest reply time in the window (0.98h, Apr 19)','Improving reply time trend in recent weeks may lift NPS in coming weeks']
+  },
+  'Trading Services':{
+    summary:'Trading Services averaged 320 orders/week. Resolution time is consistently best-in-class at 0.15–0.25h. NPS has been at or near 5.00 throughout. However, first reply time spiked to 1.40h in the latest week — a significant outlier that may impact next week\'s NPS.',
+    highlights:['Resolution time best-in-class — consistently 0.15–0.25h','NPS at or near 5.00 across all scored weeks','Missed call rate among the lowest of all teams (11–19% most weeks)'],
+    risks:['First reply time spiked to 1.40h last week — 3× the recent average','Missed call rate rose to 24% on Apr 26 — elevated vs trend'],
+    corr:['Resolution time (not first reply) is likely the primary NPS driver — sub-0.25h resolution consistently yields 5.00 NPS','The May 10 reply spike (1.40h) is a leading indicator — watch next week\'s NPS closely']
+  }
+};
+
+function s8(a){return a.slice(SI);}
+
+let active='All Teams', charts={};
+
+function buildKPIs(team){
+  const d=RAW[team];
+  const o=s8(d.orders),r=s8(d.reply),rs=s8(d.reso),m=s8(d.missed),n=s8(d.nps).filter(v=>v!==null);
+  const isAll=team==='All Teams';
+  const suffix=isAll?'— all teams':'— '+team;
+  document.getElementById('kpi-label').textContent='KPI snapshot '+suffix;
+  const avgO=Math.round(o.reduce((a,b)=>a+b,0)/o.length);
+  const latR=r[r.length-1], prevR=r[r.length-2];
+  const latRs=rs[rs.length-1], prevRs=rs[rs.length-2];
+  const latM=m[m.length-1], prevM=m[m.length-2];
+  const avgNps=n.length?(n.reduce((a,b)=>a+b,0)/n.length).toFixed(2):null;
+  const kpis=[
+    {label:'Avg weekly orders',val:avgO.toLocaleString(),delta:'8-wk avg',cls:'flat'},
+    {label:'Latest first reply',val:latR.toFixed(2)+'h',delta:(latR>prevR?'↑ ':'↓ ')+'from '+prevR.toFixed(2)+'h',cls:latR>prevR?'down':'up', note:'lower is better'},
+    {label:'Latest resolution',val:latRs.toFixed(2)+'h',delta:(latRs>prevRs?'↑ ':'↓ ')+'from '+prevRs.toFixed(2)+'h',cls:latRs>prevRs?'down':'up'},
+    {label:'Missed call rate',val:latM+'%',delta:(latM>prevM?'↑ ':'↓ ')+'from '+prevM+'%',cls:latM>prevM?'down':'up'},
+    {label:'Avg NPS',val:avgNps||'N/A',delta:avgNps?'out of 5.00':'no data',cls:avgNps?'up':'flat'}
+  ];
+  document.getElementById('kpi-cards').innerHTML=kpis.map(k=>`<div class="metric"><div class="metric-label">${k.label}</div><div class="metric-value">${k.val}</div><div class="metric-delta ${k.cls}">${k.delta}</div></div>`).join('');
+}
+
+function buildSummary(team){
+  const c=CONTENT[team]||CONTENT['All Teams'];
+  const isAll=team==='All Teams';
+  const benchNote=isAll?'':' Gray benchmark lines show all-teams average for comparison.';
+  document.getElementById('summary-card').innerHTML=`
+    <h3>Executive summary — ${team}</h3>
+    <p>${c.summary}${benchNote}</p>
+    <div class="two-col">
+      <div>
+        <div class="obs-label">Highlights</div>
+        <ul class="obs-list">${c.highlights.map(h=>`<li class="highlight-li">${h}</li>`).join('')}</ul>
+      </div>
+      <div>
+        <div class="obs-label">Watch items</div>
+        <ul class="obs-list">${c.risks.map(r=>`<li class="watch-li">${r}</li>`).join('')}</ul>
+      </div>
+    </div>
+    <div class="obs-label" style="margin-top:12px">Observations to explore</div>
+    <ul class="obs-list">${c.corr.map(r=>`<li class="corr-li">${r}</li>`).join('')}</ul>
+  `;
+}
+
+function makeLegend(id,items){
+  document.getElementById(id).innerHTML=items.map(it=>{
+    const sw=it.dashed
+      ?`<span style="width:16px;height:0;border-top:2px dashed ${it.color};display:inline-block;flex-shrink:0"></span>`
+      :`<span class="leg-sq" style="background:${it.color}"></span>`;
+    return `<span>${sw}${it.label}</span>`;
+  }).join('');
+}
+
+function baseOpts(yFmt,yMin){
+  return {
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{label:ctx=>ctx.dataset.label+': '+yFmt(ctx.parsed.y)}}},
+    scales:{
+      x:{grid:{color:gridC},ticks:{color:textC,font:{size:10},maxRotation:45,autoSkip:false}},
+      y:{grid:{color:gridC},ticks:{color:textC,font:{size:10},callback:yFmt},beginAtZero:false,min:yMin}
+    }
+  };
+}
+
+function npsOpts(){
+  return {
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{label:ctx=>ctx.dataset.label+': '+(ctx.parsed.y!==null?ctx.parsed.y.toFixed(2):'')}}},
+    scales:{
+      x:{grid:{color:gridC},ticks:{color:textC,font:{size:10},maxRotation:45,autoSkip:false}},
+      y:{grid:{color:gridC},ticks:{color:textC,font:{size:10},callback:v=>v.toFixed(1)},min:4.3,max:5.1}
+    }
+  };
+}
+
+function buildVolChart(team){
+  const isAll=team==='All Teams';
+  document.getElementById('vol-title').textContent=isAll?'Service order volume — all teams (stacked)':'Service order volume — '+team+' vs all teams';
+  const legendItems=isAll
+    ?TEAM_NAMES.map((t,i)=>({color:TEAM_COLORS[i],label:t}))
+    :[{color:'#378ADD',label:team},{color:BENCH_COLOR,label:'All teams total',dashed:true}];
+  makeLegend('vol-legend',legendItems);
+
+  if(isAll){
+    const datasets=TEAM_NAMES.map((t,i)=>({
+      label:t,data:s8(RAW[t].orders),backgroundColor:TEAM_COLORS[i],borderWidth:0,stack:'s'
+    }));
+    charts.vol=new Chart(document.getElementById('volChart'),{
+      type:'bar',data:{labels:W8,datasets},
+      options:{...baseOpts(v=>v.toLocaleString(),0),scales:{
+        x:{stacked:true,grid:{color:gridC},ticks:{color:textC,font:{size:10},maxRotation:45,autoSkip:false}},
+        y:{stacked:true,grid:{color:gridC},ticks:{color:textC,font:{size:10},callback:v=>v.toLocaleString()},beginAtZero:true}
+      }}
+    });
+  } else {
+    const td=s8(RAW[team].orders), ad=s8(RAW['All Teams'].orders);
+    charts.vol=new Chart(document.getElementById('volChart'),{
+      type:'bar',
+      data:{labels:W8,datasets:[
+        {label:team,data:td,backgroundColor:'#378ADD',borderRadius:3,borderSkipped:false,order:2},
+        {label:'All teams',type:'line',data:ad,borderColor:BENCH_COLOR,borderWidth:1.5,borderDash:[4,3],pointRadius:0,tension:0.3,fill:false,order:1,yAxisID:'y2'}
+      ]},
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}},
+        scales:{
+          x:{grid:{color:gridC},ticks:{color:textC,font:{size:10},maxRotation:45,autoSkip:false}},
+          y:{grid:{color:gridC},ticks:{color:textC,font:{size:10},callback:v=>v.toLocaleString()},beginAtZero:true,title:{display:true,text:team,color:textC,font:{size:10}}},
+          y2:{position:'right',grid:{display:false},ticks:{color:BENCH_COLOR,font:{size:10},callback:v=>v.toLocaleString()},beginAtZero:true,title:{display:true,text:'All teams',color:BENCH_COLOR,font:{size:10}}}
+        }
+      }
+    });
+  }
+}
+
+function buildTimeChart(team){
+  const isAll=team==='All Teams';
+  const td=RAW[team], ad=RAW['All Teams'];
+  const tr=s8(td.reply),trs=s8(td.reso),ar=s8(ad.reply),ars=s8(ad.reso);
+  document.getElementById('time-title').innerHTML=isAll?'First reply &amp; resolution time (hours) — all teams':'First reply &amp; resolution time (hours) — '+team;
+  const legItems=isAll
+    ?[{color:'#378ADD',label:'First reply'},{color:'#D85A30',label:'Resolution time',dashed:true}]
+    :[{color:'#378ADD',label:team+' — reply'},{color:'#D85A30',label:team+' — resolution',dashed:true},{color:BENCH_COLOR,label:'All teams — reply (benchmark)',dashed:true}];
+  makeLegend('time-legend',legItems);
+  const datasets=[
+    {label:'Reply',data:tr,borderColor:'#378ADD',backgroundColor:'#378ADD',pointRadius:3,pointStyle:'circle',tension:0.3,borderWidth:2,fill:false},
+    {label:'Resolution',data:trs,borderColor:'#D85A30',backgroundColor:'#D85A30',pointRadius:3,pointStyle:'rectRot',tension:0.3,borderWidth:2,borderDash:[5,3],fill:false},
+    ...(!isAll?[
+      {label:'All teams reply',data:ar,borderColor:BENCH_COLOR,borderWidth:1.5,borderDash:[3,3],pointRadius:0,tension:0.3,fill:false},
+      {label:'All teams reso',data:ars,borderColor:BENCH_COLOR,borderWidth:1,borderDash:[6,4],pointRadius:0,tension:0.3,fill:false}
+    ]:[])
+  ];
+  charts.time=new Chart(document.getElementById('timeChart'),{type:'line',data:{labels:W8,datasets},options:baseOpts(v=>v.toFixed(2)+'h',0)});
+}
+
+function buildMissedChart(team){
+  const isAll=team==='All Teams';
+  const tm=s8(RAW[team].missed), am=s8(RAW['All Teams'].missed);
+  document.getElementById('missed-title').textContent='Missed call rate (%) — '+(isAll?'all teams':team);
+  const legItems=isAll?[{color:'#D85A30',label:'Missed call %'}]:[{color:'#D85A30',label:team},{color:BENCH_COLOR,label:'All teams benchmark',dashed:true}];
+  makeLegend('missed-legend',legItems);
+  const datasets=[
+    {label:'Missed %',data:tm,borderColor:'#D85A30',backgroundColor:'rgba(216,90,48,0.07)',pointRadius:3,tension:0.3,borderWidth:2,fill:true,pointStyle:'circle'},
+    ...(!isAll?[{label:'All teams',data:am,borderColor:BENCH_COLOR,borderWidth:1.5,borderDash:[4,3],pointRadius:0,tension:0.3,fill:false}]:[])
+  ];
+  charts.missed=new Chart(document.getElementById('missedChart'),{type:'line',data:{labels:W8,datasets},options:baseOpts(v=>v+'%',0)});
+}
+
+function buildNpsChart(team){
+  const isAll=team==='All Teams';
+  const tn=s8(RAW[team].nps), an=s8(RAW['All Teams'].nps);
+  const hasData=tn.some(v=>v!==null);
+  document.getElementById('nps-card').style.display=hasData?'block':'none';
+  if(!hasData) return;
+  document.getElementById('nps-title').textContent='Net promoter score (out of 5) — '+(isAll?'all teams':team);
+  const legItems=isAll?[{color:'#1D9E75',label:'NPS'}]:[{color:'#1D9E75',label:team},{color:BENCH_COLOR,label:'All teams benchmark',dashed:true}];
+  makeLegend('nps-legend',legItems);
+  const datasets=[
+    {label:'NPS',data:tn,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.07)',pointRadius:4,tension:0.3,borderWidth:2,fill:true,spanGaps:false},
+    ...(!isAll && an.some(v=>v!==null)?[{label:'All teams NPS',data:an,borderColor:BENCH_COLOR,borderWidth:1.5,borderDash:[4,3],pointRadius:0,tension:0.3,fill:false,spanGaps:false}]:[])
+  ];
+  charts.nps=new Chart(document.getElementById('npsChart'),{type:'line',data:{labels:W8,datasets},options:npsOpts()});
+}
+
+function buildSelector(){
+  const sel=document.getElementById('team-selector');
+  ['All Teams',...TEAM_NAMES].forEach(t=>{
+    const b=document.createElement('button');
+    b.className='team-btn'+(t===active?' active':'');
+    b.textContent=t; b.onclick=()=>{active=t;update();};
+    sel.appendChild(b);
+  });
+}
+
+function update(){
+  document.querySelectorAll('.team-btn').forEach(b=>b.className='team-btn'+(b.textContent===active?' active':''));
+  Object.values(charts).forEach(c=>{try{c.destroy();}catch(e){}});
+  charts={};
+  buildKPIs(active);
+  buildSummary(active);
+  buildVolChart(active);
+  buildTimeChart(active);
+  buildMissedChart(active);
+  buildNpsChart(active);
+}
+
+function toggleShare(btn){
+  const p=document.getElementById('share-panel');
+  const open=p.style.display==='block';
+  p.style.display=open?'none':'block';
+  btn.textContent=open?'⬆ Share dashboard via GitHub Pages':'✕ Close share panel';
+}
+function copyUrl(){
+  const url=document.getElementById('url-preview').textContent;
+  navigator.clipboard.writeText(url).then(()=>{
+    const b=document.querySelector('.copy-btn');
+    b.textContent='Copied!';
+    setTimeout(()=>b.textContent='Copy URL',2000);
+  });
+}
+buildSelector();
+update();
+</script>
